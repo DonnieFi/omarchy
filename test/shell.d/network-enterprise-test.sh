@@ -39,6 +39,10 @@ profile_set() {
 }
 
 if [[ $1 == "-t" && $2 == "-f" && $3 == "UUID,TYPE" ]]; then
+  if [[ -f $state/fail-list ]]; then
+    echo "Error: NetworkManager is not running." >&2
+    exit 8
+  fi
   while IFS= read -r uuid; do
     [[ -n $uuid ]] || continue
     printf '%s:802-11-wireless\n' "$uuid"
@@ -99,3 +103,14 @@ PATH="$tmp/bin:$PATH" bash "$ROOT/migrations/1789647821.sh" >/dev/null
 [[ $(grep -c 'connection modify' "$tmp/state/log" || true) == "$modify_count" ]] ||
   fail "second migration run must not issue another connection modify"
 pass "migration is idempotent"
+
+: >"$tmp/state/fail-list"
+set +e
+PATH="$tmp/bin:$PATH" bash "$ROOT/migrations/1789647821.sh" >/dev/null 2>"$tmp/state/fail.err"
+list_rc=$?
+set -e
+(( list_rc != 0 )) || fail "failed connection list must exit non-zero so the migrate marker stays unset"
+grep -q 'leaving migration pending' "$tmp/state/fail.err" ||
+  fail "failed connection list should say the migration stays pending"
+[[ $(profile_field stale-eap auth-timeout) == "0" ]] || fail "failed list must not undo a prior successful repair"
+pass "failed connection list leaves the migration retryable"
