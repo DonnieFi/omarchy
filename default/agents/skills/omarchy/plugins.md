@@ -42,9 +42,10 @@ Cloning switches the bar to the cloned copy (e.g. `<username>.workspaces`),
 which is yours to edit and survives updates.
 
 Saving a loadable plugin source (`manifest.json`, `*.qml`, `*.js`) under
-`~/.config/omarchy/plugins/` reloads plugin code automatically. Runtime state
-files written next to a plugin do not. If a change somehow fails to apply,
-force a reload with `omarchy-shell shell rescanPlugins`.
+`~/.config/omarchy/plugins/` reloads plugin code automatically. Other files
+(helper scripts, data, runtime state a plugin writes) do not; after editing
+one, or if a change somehow fails to apply, force a reload with
+`omarchy-shell shell rescanPlugins`.
 
 ## Idle and Lock
 
