@@ -3,7 +3,11 @@ echo "Clear the eight-second enterprise Wi-Fi auth timeout"
 # Old panel joins pinned 802-1x.auth-timeout to 8 (#12270). Reset those
 # wpa-eap profiles to 0 (NetworkManager global default). Idempotent.
 # A failed connection list must exit non-zero so omarchy-migrate leaves the
-# marker unset and retries later instead of treating "NM down" as "nothing to do".
+# marker unset and retries later instead of treating a failed lookup as "nothing to do".
+
+# The live 3 -> 4 upgrade runs migrations before NetworkManager first starts;
+# no panel profile exists yet, and failing here would abort the upgrade.
+systemctl is-active --quiet NetworkManager.service || exit 0
 
 if ! connections=$(nmcli -t -f UUID,TYPE connection show); then
   echo "Could not list NetworkManager connections; leaving migration pending." >&2

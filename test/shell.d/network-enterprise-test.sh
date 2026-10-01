@@ -39,7 +39,7 @@ profile_set() {
 }
 
 if [[ $1 == "-t" && $2 == "-f" && $3 == "UUID,TYPE" ]]; then
-  if [[ -f $state/fail-list ]]; then
+  if [[ -f $state/fail-list || -f $state/nm-inactive ]]; then
     echo "Error: NetworkManager is not running." >&2
     exit 8
   fi
@@ -72,6 +72,12 @@ echo "unexpected nmcli: $*" >&2
 exit 99
 EOF
 chmod +x "$tmp/bin/nmcli"
+
+cat >"$tmp/bin/systemctl" <<'EOF'
+#!/bin/bash
+[[ ! -f ${NMCLI_STATE:?}/nm-inactive ]]
+EOF
+chmod +x "$tmp/bin/systemctl"
 
 profile_field() {
   awk -F= -v k="$2" '$1 == k { print substr($0, index($0, "=") + 1); exit }' "$tmp/state/profile.$1"
@@ -114,3 +120,12 @@ grep -q 'leaving migration pending' "$tmp/state/fail.err" ||
   fail "failed connection list should say the migration stays pending"
 [[ $(profile_field stale-eap auth-timeout) == "0" ]] || fail "failed list must not undo a prior successful repair"
 pass "failed connection list leaves the migration retryable"
+
+rm "$tmp/state/fail-list"
+: >"$tmp/state/nm-inactive"
+seed stale-later wpa-eap 8
+nmcli_calls=$(wc -l <"$tmp/state/log")
+PATH="$tmp/bin:$PATH" bash -euo pipefail "$ROOT/migrations/1789647821.sh" >/dev/null ||
+  fail "migration must succeed while NetworkManager is not running, as in the live quattro upgrade"
+[[ $(wc -l <"$tmp/state/log") == "$nmcli_calls" ]] || fail "migration must not call nmcli while NetworkManager is not running"
+pass "migration skips cleanly while NetworkManager is not running"
