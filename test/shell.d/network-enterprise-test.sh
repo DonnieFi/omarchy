@@ -51,6 +51,10 @@ if [[ $1 == "-t" && $2 == "-f" && $3 == "UUID,TYPE" ]]; then
 fi
 
 if [[ $1 == "-g" && $3 == "connection" && $4 == "show" && $5 == "uuid" ]]; then
+  if [[ -f $state/fail-show ]]; then
+    echo "Error: NetworkManager is not running." >&2
+    exit 8
+  fi
   case "$2" in
     802-11-wireless-security.key-mgmt) profile_get "$6" key-mgmt ;;
     802-1x.auth-timeout) profile_get "$6" auth-timeout ;;
@@ -129,3 +133,13 @@ PATH="$tmp/bin:$PATH" bash -euo pipefail "$ROOT/migrations/1789647821.sh" >/dev/
   fail "migration must succeed while NetworkManager is not running, as in the live quattro upgrade"
 [[ $(wc -l <"$tmp/state/log") == "$nmcli_calls" ]] || fail "migration must not call nmcli while NetworkManager is not running"
 pass "migration skips cleanly while NetworkManager is not running"
+
+rm "$tmp/state/nm-inactive"
+: >"$tmp/state/fail-show"
+set +e
+PATH="$tmp/bin:$PATH" bash -euo pipefail "$ROOT/migrations/1789647821.sh" >/dev/null 2>&1
+show_rc=$?
+set -e
+(( show_rc != 0 )) || fail "a failed profile lookup must exit non-zero so the migrate marker stays unset"
+[[ $(profile_field stale-later auth-timeout) == "8" ]] || fail "a failed profile lookup must not modify the profile"
+pass "failed profile lookup leaves the migration retryable"
