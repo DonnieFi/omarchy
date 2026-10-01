@@ -660,8 +660,8 @@ QtObject {
     }
   }
 
-  // Only loadable plugin sources — caches, data.json, logs, and helper
-  // binaries must not tear down the whole bar (see #12158).
+  // Filtered in localPluginIdForPath, not with --include: inotifywait drops
+  // every directory event under --include, so a plugin moved in whole is missed.
   property Process localPluginWatcher: Process {
     command: [
       "inotifywait",
@@ -670,8 +670,6 @@ QtObject {
       "-q",
       "-e",
       "close_write,create,delete,move",
-      "--include",
-      "(manifest\\.json$|\\.manifest\\.json$|\\.(qml|js)$)",
       "--format",
       "%w%f",
       registry.pluginsDir
@@ -733,9 +731,10 @@ QtObject {
   // written next to the plugin (caches, data.json, downloaded binaries) must
   // not trigger a full shell reload.
   function isWatchedPluginPath(relative) {
-    var baseName = relative
     var slash = relative.lastIndexOf("/")
-    if (slash !== -1) baseName = relative.slice(slash + 1)
+    // A plugin directory itself, created, moved or removed whole.
+    if (slash === -1) return true
+    var baseName = relative.slice(slash + 1)
     if (baseName === "manifest.json") return true
     if (baseName.endsWith(".manifest.json")) return true
     if (baseName.endsWith(".qml")) return true
