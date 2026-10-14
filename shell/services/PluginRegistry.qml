@@ -726,8 +726,10 @@ QtObject {
       onRead: function(line) {
         var space = line.indexOf(" ")
         var events = line.slice(0, space)
-        var movedDirectory = events.indexOf("MOVED") !== -1 && events.indexOf("ISDIR") !== -1
-        var pluginId = registry.localPluginIdForPath(line.slice(space + 1), movedDirectory)
+        var directory = events.indexOf("ISDIR") !== -1
+        var movedDirectory = directory && events.indexOf("MOVED") !== -1
+        var createdDirectory = directory && events.indexOf("CREATE") !== -1
+        var pluginId = registry.localPluginIdForPath(line.slice(space + 1), movedDirectory, createdDirectory)
         if (pluginId) registry.localPluginChanged(pluginId)
       }
     }
@@ -790,8 +792,9 @@ QtObject {
     return false
   }
 
-  // A moved directory carries sources without a file event of their own.
-  function localPluginIdForPath(filePath, movedDirectory) {
+  // A moved directory carries sources without a file event of their own, and so does a
+  // plugin copied in: its files can land before the recursive watch reaches the new directory.
+  function localPluginIdForPath(filePath, movedDirectory, createdDirectory) {
     var base = pluginsDir.replace(/\/$/, "") + "/"
     var path = String(filePath || "").trim()
     if (path.indexOf(base) !== 0) return ""
@@ -800,9 +803,10 @@ QtObject {
     // Hidden entries are not plugins: clone staging dirs, remove backups.
     if (relative.indexOf(".") === 0) return ""
     if (relative.indexOf("/.git/") !== -1 || relative.endsWith("/.git")) return ""
-    if (!movedDirectory && !isWatchedPluginPath(relative)) return ""
-
     var slash = relative.indexOf("/")
+    var copiedPlugin = createdDirectory && slash === -1
+    if (!movedDirectory && !copiedPlugin && !isWatchedPluginPath(relative)) return ""
+
     return slash === -1 ? relative : relative.slice(0, slash)
   }
 

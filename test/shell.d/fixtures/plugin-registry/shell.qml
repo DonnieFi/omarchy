@@ -485,6 +485,8 @@ ShellRoot {
     root.assertEqual(registry.localPluginIdForPath(cloneBase, true), "dhh.clock", "a plugin directory moved in or out whole is watched")
     root.assertEqual(registry.localPluginIdForPath(cloneBase + "/components", true), "dhh.clock", "a source directory moved within a plugin is watched")
     root.assertEqual(registry.localPluginIdForPath(cloneBase + "/cache", false), "", "a runtime directory created by a plugin is ignored")
+    root.assertEqual(registry.localPluginIdForPath(cloneBase, false, true), "dhh.clock", "a plugin directory copied in is watched")
+    root.assertEqual(registry.localPluginIdForPath(cloneBase + "/cache", false, true), "", "a directory created inside a plugin is ignored")
     root.assertEqual(registry.localPluginIdForPath(cloneBase + "/.git/index"), "", "plugin git metadata is ignored")
     root.assertEqual(registry.localPluginIdForPath(registry.pluginsDir + "/.clone.abc123/manifest.json"), "", "hidden staging and backup dirs are ignored")
     root.assertEqual(registry.localPluginIdForPath(cloneBase + "/data.json"), "", "plugin runtime state files are ignored")
